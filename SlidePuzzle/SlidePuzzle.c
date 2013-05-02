@@ -9,6 +9,9 @@
 #include <string.h>
 #include <time.h>
 
+#include "Common.h"
+#include "ConsoleUtil.h"
+
 #define YUTORI 1
 #define VERY_EASY 10
 #define EASY 50
@@ -98,7 +101,7 @@ struct Pos
 
 void playPuzzle(struct Piece **pieceContainer);
 
-struct Size getArraySize();
+struct Size getPuzzleDataSize();
 
 struct Pos getBlankPiecePos(const struct Piece **array);
 
@@ -164,6 +167,7 @@ void playPuzzle(struct Piece **pieceContainer)
     }
 
     printf("完成！おめでとう！！\n");
+    printEndAnimation();
     printf("何かボタンを押してね\n");
 
     getch();
@@ -188,7 +192,7 @@ void setArrayData(struct Piece** array)
     }
 }
 
-struct Size getArraySize()
+struct Size getPuzzleDataSize()
 {
     int i, column = 0, max_column = 0;
     int row = sizeof(g_ArrayAA) / sizeof(char*);
@@ -258,11 +262,11 @@ enum Way getUserInputDirection()
 
 int isClear(const struct Piece **array)
 {
-    int m, n, isClear = 1;
+    int m, n, isClear = TRUE;
 
     for(m = 0; m < ROW; m++) {
         for(n = 0; n < COLUMN; n++) {
-            if(array[m][n].pieceID != m * COLUMN + n) isClear = 0;
+            if(array[m][n].pieceID != m * COLUMN + n) isClear = FALSE;
         }
     }
     return isClear;
@@ -281,11 +285,11 @@ void swapPiece(struct Piece **array, struct Pos blankPos, struct Pos dstPos)
 
 int canMovePiece(struct Size arraySize, struct Pos dstPos)
 {
-    int canMovePiece = 0;
+    int canMovePiece = FALSE;
 
     if(0 <= dstPos.x && dstPos.x < arraySize.column)
         if(0 <= dstPos.y && dstPos.y < arraySize.row)
-            canMovePiece = 1;
+            canMovePiece = TRUE;
 
     return canMovePiece;
 }
@@ -294,7 +298,7 @@ int movePuzzlePiece(struct Piece **array, const struct Pos* blankPos, Way moveWa
 {
     struct Pos dstPos = *blankPos;
     struct Size arraySize = {COLUMN, ROW};
-    int movedPiece = 0;
+    int movedPiece = FALSE;
 
     switch(moveWay) {
     case LEFT:
@@ -316,7 +320,7 @@ int movePuzzlePiece(struct Piece **array, const struct Pos* blankPos, Way moveWa
 
     if(canMovePiece(arraySize, dstPos)) {
         swapPiece(array, *blankPos, dstPos);
-        movedPiece = 1;
+        movedPiece = TRUE;
     }
 
     return movedPiece;
@@ -332,7 +336,6 @@ void shufflePuzzlePiece(struct Piece **array)
     srand((unsigned int)time(NULL));
     tableSize = sizeof(wayTable) / sizeof(Way);
     dprintf("size table: %d\n", tableSize);
-
     
     while(moveCount < GAME_LEVEL) {
         moveWay = wayTable[rand() % tableSize];
@@ -347,7 +350,9 @@ void drawResult(const struct Piece **array)
     int status = isClear(array);
 
 #ifdef WIN32
+#ifndef APP_DEBUG
     system("cls");
+#endif
 #endif
 
     drawArray(array, status);
