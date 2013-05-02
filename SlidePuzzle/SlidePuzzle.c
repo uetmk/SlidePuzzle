@@ -1,19 +1,30 @@
 
 #ifdef WIN32
 #include <Windows.h>
+#include <conio.h>
 #endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <conio.h>
 
-#define HARD_MODE 30
-#define EASY_MODE 10
-#define GAME_LEVEL (EASY_MODE) // シャッフル時の移動回数
+#define YUTORI 1
+#define VERY_EASY 10
+#define EASY 50
+#define NORMAL 100
+#define HARD 300
+#define GAME_LEVEL (EASY) // シャッフル時の移動回数
  
 #define MAX(x, y) (x > y ? x : y)
+
+// #define APP_DEBUG (1)
+
+#ifdef APP_DEBUG
+#define dprintf(fmt, ...) printf("[DEBUG] " ## fmt, __VA_ARGS__);
+#else
+#define dprintf(fmt, ...)
+#endif
 
 // 使用するデータを"#if 1"にして有効にする
 // AAのピースとして使用可能なのは、全角文字もしくは半角文字x2
@@ -63,6 +74,7 @@ typedef enum Way
     RIGHT,
     UP,
     DOWN,
+    NONE,
     NUM_WAY,
 } Way;
 
@@ -143,11 +155,12 @@ void playPuzzle(struct Piece **pieceContainer)
     drawResult((const struct Piece**)pieceContainer);
 
     while(!isClear((const struct Piece**)pieceContainer)) {
-        printf("←(左): a,h,  ↑(上): s,k,  ↓(下): w,j,  →(右): d,l\n");
         moveWay = getUserInputDirection();
-        blankPos = getBlankPiecePos((const struct Piece**)pieceContainer);
-        movePuzzlePiece(pieceContainer, &blankPos, moveWay);
-        drawResult((const struct Piece**)pieceContainer);
+        if(moveWay != NONE) {
+            blankPos = getBlankPiecePos((const struct Piece**)pieceContainer);
+            movePuzzlePiece(pieceContainer, &blankPos, moveWay);
+            drawResult((const struct Piece**)pieceContainer);
+        }
     }
 
     printf("完成！おめでとう！！\n");
@@ -181,8 +194,6 @@ struct Size getArraySize()
     int row = sizeof(g_ArrayAA) / sizeof(char*);
     struct Size retSize;
 
-    printf("g_ArrayA size = %d\n", column);
-
     for(i = 0; i < row; i++) {
         column = strlen(g_ArrayAA[i]);
         max_column = MAX(column, max_column);
@@ -190,6 +201,8 @@ struct Size getArraySize()
 
     retSize.column = max_column / BYTE_PER_ELEMENT;
     retSize.row = row;
+
+    dprintf("Array: row = %d, column  = %d\n", retSize.row, retSize.column);
 
     return retSize;
 }
@@ -213,24 +226,19 @@ struct Pos getBlankPiecePos(const struct Piece** array)
  
 enum Way convertKeyCodeToDirection(int keyCode)
 {
-    Way moveWay = LEFT;
+    Way moveWay = NONE;
 
-    // ←(左): a,h,  ↑(上): s,k,  ↓(下): w,j,  →(右): d,l
-
-    if(keyCode == 'a' || keyCode == 'h') {
+    if(keyCode == 0x4b) {
         moveWay = LEFT;
     }
-    else if(keyCode == 's' || keyCode == 'k') {
+    else if(keyCode == 0x48) {
         moveWay = UP;
     }
-    else if(keyCode == 'w' || keyCode == 'j') {
+    else if(keyCode == 0x50) {
         moveWay = DOWN;
     }
-    else if(keyCode == 'd' || keyCode == 'l') {
+    else if(keyCode == 0x4d) {
         moveWay = RIGHT;
-    }
-    else {
-        printf("Error: invalid Key Code(%d)\n", keyCode);
     }
 
     return moveWay;
@@ -243,6 +251,7 @@ enum Way getUserInputDirection()
     while(keyCode == 0) {
         keyCode = getch(); 
     }
+    if(keyCode == 0xe0) keyCode = getch();
 
     return convertKeyCodeToDirection(keyCode);
 }
@@ -263,7 +272,7 @@ void swapPiece(struct Piece **array, struct Pos blankPos, struct Pos dstPos)
 {
     struct Piece tmp;
 
-    // printf("blankPos[%d, %d] -> dstPos[%d, %d]\n", blankPos.x, blankPos.y, dstPos.x, dstPos.y);
+    dprintf("blankPos[%d, %d] -> dstPos[%d, %d]\n", blankPos.x, blankPos.y, dstPos.x, dstPos.y);
 
     tmp = array[blankPos.y][blankPos.x];
     array[blankPos.y][blankPos.x] = array[dstPos.y][dstPos.x];
@@ -318,12 +327,15 @@ void shufflePuzzlePiece(struct Piece **array)
     Way wayTable[] = {LEFT, RIGHT, UP, DOWN};
     Way moveWay;
     struct Pos blankPos;
-    int moveCount = 0;
+    int moveCount = 0, tableSize;
 
     srand((unsigned int)time(NULL));
+    tableSize = sizeof(wayTable) / sizeof(Way);
+    dprintf("size table: %d\n", tableSize);
+
     
     while(moveCount < GAME_LEVEL) {
-        moveWay = wayTable[rand() % NUM_WAY];
+        moveWay = wayTable[rand() % tableSize];
         blankPos = getBlankPiecePos((const struct Piece**)array);
         if(movePuzzlePiece(array, &blankPos, moveWay))
             moveCount++;
@@ -339,8 +351,10 @@ void drawResult(const struct Piece **array)
 #endif
 
     drawArray(array, status);
-    printf("[DEBUG] Print Puzzle Piece ID (Blank ID = %d)\n\n", BLANK_PIECE_ID);
+    printf("Print Puzzle Piece ID (Blank ID = %d)\n\n", BLANK_PIECE_ID);
     printPieceIDs(array);
+
+    if(!status) printf("矢印キー [←↑→↓] で操作\n");
 }
 
 void drawPiece(const struct Piece piece, int isClear)
